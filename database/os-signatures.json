@@ -1,0 +1,45 @@
+{
+  "schema_version": 1,
+  "database_version": "0.1.0",
+  "license": "BSD-2-Clause",
+  "samples": [
+    {
+      "id": "sample-1040d8ea27d82416",
+      "family": "linux",
+      "os_name": "Ubuntu",
+      "os_version": "26.04",
+      "kernel": "7.0.0-38-generic",
+      "syn": "syn1:4:64:1:65495:65495:10:2-4-8-1-3",
+      "tlsfp": null,
+      "initial_ttl": 64,
+      "captured_at": "2026-11-06T23:52:18+02:00",
+      "provenance": {
+        "method": "local_capture",
+        "network": "loopback",
+        "label_source": "Local platform identity and /etc/os-release; TCP kernel identified by platform.release()",
+        "application": "CPython 3.14.4 http.client, default socket options",
+        "notes": "Original controlled capture on the Linux development host. Ubuntu userspace and the host TCP kernel are recorded separately. Both endpoints run on the same host over loopback; no proxy or tunnel. These observations do not establish Linux-versus-Android accuracy.",
+        "ttl_source": "Local read of /proc/sys/net/ipv4/ip_default_ttl during loopback collection"
+      }
+    },
+    {
+      "id": "sample-abee32af6ee9db64",
+      "family": "linux",
+      "os_name": "Ubuntu",
+      "os_version": "26.04",
+      "kernel": "7.0.0-38-generic",
+      "syn": "syn1:6:64:-:65476:65476:10:2-4-8-1-3",
+      "tlsfp": null,
+      "initial_ttl": 64,
+      "captured_at": "2026-11-06T23:52:18+02:00",
+      "provenance": {
+        "method": "local_capture",
+        "network": "loopback",
+        "label_source": "Local platform identity and /etc/os-release; TCP kernel identified by platform.release()",
+        "application": "CPython 3.14.4 http.client, default socket options",
+        "notes": "Original controlled capture on the Linux development host. Ubuntu userspace and the host TCP kernel are recorded separately. Both endpoints run on the same host over loopback; no proxy or tunnel. These observations do not establish Linux-versus-Android accuracy.",
+        "ttl_source": "Local read of /proc/sys/net/ipv6/conf/lo/hop_limit during loopback collection"
+      }
+    }
+  ]
+}
