@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: BSD-2-Clause
 ngx_addon_name=ngx_http_connfp_module
 if [ "$HTTP_SSL" != YES ]; then
     echo "nginx-connfp requires --with-http_ssl_module and OpenSSL"

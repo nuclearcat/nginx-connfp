@@ -7,6 +7,28 @@ programs or external fingerprint service are needed.
 The module observes the connection that reaches nginx. It exposes values for
 logging, `map` rules and upstream headers. It does not change request policy.
 
+## Source provenance
+
+The C parsers, nginx integration, build configuration and tests were written for
+this project. No FoxIO or nDPI implementation source, nginx core patches,
+third-party fingerprint library or generated third-party source is vendored.
+nginx module descriptors and API names follow nginx's public module interface.
+
+TLSFP's algorithm and numeric reference data come from ntop's published
+specification, credited in [NOTICE](NOTICE) under its CC BY 4.0 terms. The
+independent C implementation and Python test implementation use the calculation
+rules; they are not ports of nDPI's C code. The `syn1:` format is defined here.
+
+BSD-2-Clause covers this project's code. External dependencies retain their
+own licenses: [nginx](https://nginx.org/LICENSE) and
+[OpenSSL 3.x](https://openssl-library.org/source/license/), along with the
+libraries selected by your nginx build. Binary distributions must retain the
+applicable dependency notices as well as this project's LICENSE and NOTICE.
+
+Contributions must be written for this project using specifications and API
+documentation. Do not submit copied or translated implementation code from
+other projects. Disclose external references and dependency changes for review.
+
 ## Build
 
 Tested with nginx 1.30.6 and OpenSSL 3.5.5. Build with the same source version,

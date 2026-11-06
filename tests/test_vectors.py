@@ -1,4 +1,6 @@
 #!/usr/bin/env python3
+# SPDX-License-Identifier: BSD-2-Clause
+# TLSFP specification and numeric reference data: see NOTICE.
 """Independent byte-level vectors and invariants; Python stdlib + C compiler."""
 import ctypes
 import hashlib

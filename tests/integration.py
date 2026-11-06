@@ -1,4 +1,5 @@
 #!/usr/bin/env python3
+# SPDX-License-Identifier: BSD-2-Clause
 """Run real TLS/TCP connections against a built nginx; no root or packages needed."""
 import http.client
 import json
