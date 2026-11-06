@@ -1,0 +1,53 @@
+name: Test
+on: [push, pull_request]
+permissions:
+  contents: read
+jobs:
+  test:
+    runs-on: ubuntu-24.04
+    strategy:
+      matrix:
+        module: [static, dynamic]
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install dependencies
+        run: sudo apt-get update && sudo apt-get install -y build-essential libssl-dev libpcre2-dev zlib1g-dev curl openssl clang
+      - name: Parser tests
+        run: python3 tests/test_vectors.py
+      - name: Build nginx 1.30.6
+        env:
+          MODULE: ${{ matrix.module }}
+        run: |
+          curl -fsSL https://nginx.org/download/nginx-1.30.6.tar.gz -o /tmp/nginx.tar.gz
+          echo '3cf46f5ed7504d460125866b7bea99fb357f31d887e2e63b35503310e9b8b6c8  /tmp/nginx.tar.gz' | sha256sum -c -
+          tar -xzf /tmp/nginx.tar.gz -C /tmp
+          cd /tmp/nginx-1.30.6
+          if [ "$MODULE" = dynamic ]; then
+            ./configure --with-http_ssl_module --with-http_v2_module --with-debug --with-compat --add-dynamic-module="$GITHUB_WORKSPACE"
+          else
+            ./configure --with-http_ssl_module --with-http_v2_module --with-debug --add-module="$GITHUB_WORKSPACE"
+          fi
+          make -j2
+      - name: Real connection tests
+        env:
+          MODULE: ${{ matrix.module }}
+        run: |
+          if [ "$MODULE" = dynamic ]; then
+            python3 tests/integration.py /tmp/nginx-1.30.6/objs/nginx /tmp/nginx-1.30.6/objs/ngx_http_connfp_module.so
+          else
+            python3 tests/integration.py /tmp/nginx-1.30.6/objs/nginx
+          fi
+      - name: Fuzz parsers with address and undefined-behavior sanitizers
+        if: matrix.module == 'static'
+        run: |
+          mkdir /tmp/connfp-corpus
+          python3 - <<'PY'
+          import sys
+          from pathlib import Path
+          sys.path.insert(0, 'tests')
+          from test_vectors import hello, vector, words
+          Path('/tmp/connfp-corpus/hello').write_bytes(hello([0x1301, 0x1302], [(10, vector(words([23, 29]))), (13, vector(words([0x403])))]))
+          Path('/tmp/connfp-corpus/syn').write_bytes(bytes.fromhex('4500002800004000400600007f0000017f0000010001000200000000000000005002faf000000000'))
+          PY
+          clang -g -fsanitize=fuzzer,address,undefined -I src tests/fuzz.c src/connfp.c -lcrypto -o /tmp/connfp-fuzz
+          /tmp/connfp-fuzz -max_total_time=20 -max_len=131072 /tmp/connfp-corpus

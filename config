@@ -1,0 +1,10 @@
+ngx_addon_name=ngx_http_connfp_module
+if [ "$HTTP_SSL" != YES ]; then
+    echo "nginx-connfp requires --with-http_ssl_module and OpenSSL"
+    exit 1
+fi
+ngx_module_type=HTTP
+ngx_module_name=ngx_http_connfp_module
+ngx_module_srcs="$ngx_addon_dir/src/ngx_http_connfp_module.c $ngx_addon_dir/src/connfp.c"
+ngx_module_deps="$ngx_addon_dir/src/connfp.h"
+. auto/module

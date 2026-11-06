@@ -1,0 +1,11 @@
+nginx-connfp is an independent implementation. It contains no FoxIO module
+source or patches and does not implement JA4+ output formats.
+
+TLSFP implements the calculation rules in ntop's "nDPI TLS Client Fingerprint
+(TLSFP) Format", draft 0.1, ephemeral extension Registry v1, copyright 2026 ntop:
+https://github.com/ntop/nDPI/blob/a01ea9463125b24dcf7b37d71274291dc4a95753/fingerprint/nDPI_TLS_Fingerprint.md
+The specification is licensed under Creative Commons Attribution 4.0:
+https://creativecommons.org/licenses/by/4.0/
+This project independently implements its format; it does not incorporate nDPI
+library code. Implementation choices and draft discrepancies are documented in
+README.md. No endorsement by ntop or FoxIO is implied.
