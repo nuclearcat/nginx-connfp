@@ -139,22 +139,135 @@ timestamps. Window scale is the advertised byte, before any kernel clamping.
 IPv4 options and IPv6 hop-by-hop, routing, destination and AH headers are
 skipped to find TCP. Fragmented packets, malformed options and saved headers
 larger than 4096 bytes yield an empty value. This is this project's own format.
-It does not emit JA4T values or infer an operating-system name.
+It does not emit JA4T values. OS hints are available through the opt-in
+experimental database below.
 
 TTL reflects routing distance. A TCP or TLS terminating proxy supplies its own
 handshake, so capture belongs at the public edge. Forwarded headers cannot
 restore the original handshake. Fingerprints are shared and can be imitated;
 use them as one signal alongside request behavior.
 
+## Experimental OS database
+
+`database/os-signatures.json` contains independently collected observations
+under BSD-2-Clause. Each sample records its raw SYN, known OS label, kernel,
+application, network, timestamp and how the label and initial TTL were obtained.
+Content-derived sample IDs detect accidental edits to that provenance. The
+initial corpus contains Linux IPv4/IPv6 loopback observations from one host.
+It contains no Android samples and has no measured classification accuracy.
+
+The Python 3.10+ tools match existing observations and generate nginx maps.
+They do not change the C module or existing variables. Classification is
+opt-in. Every single-family match has status `tentative` and confidence
+`unvalidated`. A matching Linux entry does not exclude Android or other systems
+absent from the corpus. Overlapping families return `ambiguous` with all
+candidates; no match returns `unknown`. OS version is never predicted.
+
+Matching uses exact IP version, DF, window, window scale and TCP option order.
+MSS is retained as evidence but ignored for matching because it can change
+with network conditions. Window size remains exact; no window/MSS relationship
+is inferred. A measured initial TTL permits up to 32 routed hops by default,
+configurable from 0 to 64. Without a measured initial TTL, only the sample's
+exact observed TTL matches. No common initial TTL is silently guessed.
+These rules are experimental and require validation on independent devices
+and network paths. Contributors' labels are operator assertions, not
+cryptographically verified device identities. HTTP headers never supply labels.
+
+```sh
+python3 tools/osdb.py validate
+python3 tools/osdb.py match 'syn1:4:64:1:65495:65495:10:2-4-8-1-3'
+python3 tools/osdb.py nginx --output /tmp/connfp-osdb.conf
+```
+
+Include the generated file inside nginx's `http {}` block. It creates these
+variables using `$connfp_syn` as the input, with no request-time service calls
+or database-file reads:
+
+| Variable | Value |
+| --- | --- |
+| `$connfp_os_family` | One tentative family, or `unknown` |
+| `$connfp_os_candidates` | Comma-separated candidate families, or `none` |
+| `$connfp_os_status` | `tentative`, `ambiguous` or `unknown` |
+| `$connfp_os_confidence` | `unvalidated` or `none`, never a probability |
+| `$connfp_os_rule` | Generated rule ID, or `none` |
+
+The include records the database version and canonical SHA-256. Regenerate it
+after reviewing a database update, then run `nginx -t` and reload nginx.
+The generator combines overlapping TTL ranges before producing regexes, so
+the first regex in a file cannot silently select one of several OS families.
+Regex lookup cost grows with the corpus; the initial dataset is small.
+
+For example, after installing the generated include at the path below, add
+these directives inside `http {}` and select `connfp_os` in `access_log`:
+
+```nginx
+include /etc/nginx/connfp-osdb.conf;
+log_format connfp_os escape=json
+    '{"syn":"$connfp_syn","os_family":"$connfp_os_family",'
+    '"candidates":"$connfp_os_candidates","status":"$connfp_os_status",'
+    '"confidence":"$connfp_os_confidence","rule":"$connfp_os_rule"}';
+```
+
+### Collecting original samples
+
+For the local machine, a helper starts a temporary nginx bound to loopback,
+collects IPv4/IPv6 connections and records local OS/kernel metadata:
+
+```sh
+python3 tools/capture_local.py /path/to/nginx/objs/nginx \
+    --notes 'Known Linux VM; direct loopback; describe virtualization here' \
+    --output /tmp/local-samples.json
+# Add --module /path/to/ngx_http_connfp_module.so for a dynamic build.
+```
+
+Use `--ip 4` on a host without IPv6 loopback. Samples with identical content
+are deduplicated. Multiple connections from one machine do not establish
+cross-device accuracy. On systems where automatic OS identity is uncertain,
+use the operator-labeled collection flow instead.
+
+For Android or another known device, enable `tcp_save_syn on;` on a controlled
+edge server and include `examples/capture-location.conf` inside its server
+block. Request `/__connfp_sample` from the labeled device, using a direct TCP
+connection to that edge, and save the returned JSON. The request must originate
+on the device being labeled. TLS-terminating proxies or cached responses would
+invalidate the sample. The location sends `Cache-Control: no-store` and can be
+removed after collection. Then label the saved JSON on your workstation:
+
+```sh
+python3 tools/osdb.py record --input /tmp/android-capture.json \
+    --family android --os-name Android --os-version 'measured device version' \
+    --kernel 'uname -r from the device' \
+    --label-source 'Known handset; OS settings and device kernel inspection' \
+    --application 'Browser or HTTP client and its measured version' \
+    --network wifi --notes 'Device model, capture method and network details' \
+    --output /tmp/android-sample.json
+python3 tools/osdb.py merge /tmp/android-sample.json --version 0.1.1 \
+    --output /tmp/proposed-os-signatures.json
+python3 tools/osdb.py validate --database /tmp/proposed-os-signatures.json
+```
+
+`record` also accepts one dashboard JSON access-log record with `tcp_syn` and
+`time` fields. If the sender's initial TTL was measured, provide
+`--initial-ttl NUMBER --ttl-source 'how it was measured'`. Otherwise omit both.
+Keep unknown OS versions or kernels explicitly labeled `unknown`.
+
+Review proposed samples and their provenance before replacing the corpus.
+Collect from controlled devices, VMs or contributor-owned systems; imported
+signature databases and labels derived solely from User-Agent are outside this
+corpus's contribution policy. Keep synthetic classifier fixtures in tests.
+Before claiming Linux/Android separation, collect both populations across
+devices, kernel versions and paths and measure errors on held-out devices.
+
 ## Tests
 
-The parser tests need Python 3, a C compiler and OpenSSL development headers:
+The tests need Python 3.10+, a C compiler and OpenSSL development headers:
 
 ```sh
 python3 tests/test_vectors.py
+python3 tests/test_osdb.py
 ```
 
-The integration test needs a built nginx, Linux with SYN capture, Python 3,
+The integration tests need a built nginx, Linux with SYN capture, Python 3.10+,
 OpenSSL CLI, IPv6 loopback and curl with HTTP/2 support. It uses temporary
 files, ephemeral loopback ports and a self-signed certificate, and stops its
 nginx process on exit. It compares captured ClientHellos with an independent
@@ -162,8 +275,10 @@ Python implementation of the calculation rules.
 
 ```sh
 python3 tests/integration.py /path/to/nginx/objs/nginx
+python3 tests/integration_osdb.py /path/to/nginx/objs/nginx
 # For a dynamically built module and an otherwise unmodified nginx binary:
 python3 tests/integration.py /path/to/nginx /path/to/ngx_http_connfp_module.so
+python3 tests/integration_osdb.py /path/to/nginx /path/to/ngx_http_connfp_module.so
 ```
 
 Coverage includes TLS 1.2/1.3, resumption, HelloRetryRequest, fragmented
